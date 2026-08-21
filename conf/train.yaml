@@ -1,0 +1,140 @@
+defaults:
+  - _self_
+
+experiment: "diffusion_test" # tag for the log dir
+
+# === RESUME / FINETUNE ===
+# Resume an interrupted run — set BOTH (config is auto-loaded from resume_dir):
+#   load_path: /path/to/results/track_dit/EXPERIMENT_DIR/model_575.ckpt
+#   resume_dir: /path/to/results/track_dit/EXPERIMENT_DIR
+# Finetune from the released checkpoint — set load_path only (keep
+# resume_dir: null) and match the architecture flag:
+#   load_path: /path/to/motion_forecasting_diT_B.ckpt
+#   model_cfg.motion_history_conditioning: channel
+load_path: null
+resume_dir: null
+
+
+hydra:
+  run:
+    dir: ./results/track_dit/${now:%m%d}_${experiment}_${now:%H%M}
+  sweep:
+    dir: ./results/track_dit/${now:%m%d}_${experiment}_${now:%H%M}
+    subdir: ${hydra.job.num}
+
+train_gpus: [0]
+
+# Data: folder of demo-format examples, one subfolder per example with
+# image.png + tracks.npz (+ optional meta.json). See docs/DATA_PREPROCESSING.md.
+data_root: ./demo_examples
+
+# Training
+lr: 2e-4
+batch_size: 32
+mix_precision: false
+num_workers: 2
+save_freq: 5
+clip_grad: 5.0
+epochs: 200
+seed: 0
+log_every: 50  # Log step metrics every N optimizer steps
+limit_train_batches: null  # Limit number of batches per epoch (null for no limit)
+
+# NCCL / distributed timeouts (seconds)
+# - nccl_timeout_seconds: Lightning DDPStrategy / process-group store timeout.
+nccl_timeout_seconds: 60000
+
+# === EMA (Exponential Moving Average) ===
+# Maintains a smoothed copy of model weights for evaluation/inference.
+# Common in diffusion model training (e.g., DDPM, DiT) for better sample quality.
+ema:
+  enabled: true  # Set to true to enable EMA
+  decay: 0.9997   # Good starting value; higher = smoother. Try 0.9999 first, then 0.999 if training is short.
+  start_step: 0   # Start tracking EMA from this training step (0 = immediately)
+
+optimizer_cfg:
+  type: optim.Adam
+  params:
+    lr: ${lr}
+    # Weight decay: adds L2 penalty to loss gradient. Set to 0 to disable.
+    # NOTE: With optim.Adam, this is L2 regularization (coupled with adaptive LR).
+    # For proper decoupled weight decay, change type to optim.AdamW.
+    # If using EMA, weight decay is less critical but can still help.
+    # Good starting value if enabled: 0.01 with AdamW, or 1e-4 with Adam.
+    weight_decay: 0
+
+scheduler_cfg:
+  type: CosineAnnealingLRWithWarmup
+  params:
+    T_max: ${epochs}
+    warmup_lr: 1e-5
+    warmup_epoch: 5
+
+# Diffusion model config
+model_cfg:
+  dit_model_name: "DiT-B-MammalNet"  # Which DiT variant to use
+  horizon: 32        # Track timesteps the model predicts over
+  num_points: 320    # Fixed point count (inputs are padded/downsampled to this)
+  img_size: 256      # Model input image size
+  diffusion_steps: 1000  # Training timesteps
+  noise_schedule: "linear"
+  beta_start: 0.0001
+  beta_end: 0.02
+  model_mean_type: "start_x"  # predict tracks
+  model_var_type: "fixed_small"
+  loss_type: "mse"  # NOTE: only used by GaussianDiffusion internals (VLB); actual training loss is track_error_metric below
+  track_error_metric: "l1"  # Actual training loss function. Options: "l1" (absolute error) or "l2" (squared error)
+  num_point_cond: 4  # Number of observed history timesteps to condition on
+  # Motion history conditioning scheme:
+  # "embedded" = dedicated sin-cos conditioning channels (training default)
+  # "channel"  = layout [XVel|YVel|Occ|DINO]; history conditions by fixing
+  #              the leading channels to GT (required for the released checkpoints)
+  motion_history_conditioning: "embedded"
+  motion_history_dim: 340  # Dim per velocity sin-cos embedding (C1/C2/C3, "embedded" only)
+  motion_history_scale: 0.19092  # Combined scale = 0.135 * sqrt(2)
+  # Velocity/Displacement conditioning
+  condition_on_displacement: true  # Condition on total displacement
+  velocity_conditioning_type: "linear"  # Options: "linear" or "timestep_embedder"
+  vel_disp_dropout: true  # Enable dropout on velocity/displacement conditioning (for CFG-style training)
+  null_embedding_type: "zero"  # "learned" (nn.Parameter, trainable) or "zero" (fixed zeros, prevents null-drift)
+  single_cond_dropout_prob: 0.5  # P(use null embedding)
+  # Vel/disp conditioning mode:
+  # "adaln" = add vel/disp embedding to AdaLN conditioning vector c (original/default)
+  # "token" = prepend vel/disp as sequence tokens with attention masking for dropout
+  vel_disp_conditioning_mode: "adaln"
+  # Token type embeddings (only used when vel_disp_conditioning_mode="token"):
+  # If true, adds learned type embeddings to distinguish vel (type 0), dx (type 1),
+  # and track (type 2) tokens. Helps the model know what kind of token it's attending to.
+  vel_disp_token_type_embeddings: false
+  # Clipping for denoised samples (allows tracks to extend beyond [0,1] bounds)
+  clip_denoised_multiplier: 1  # Clip denoised predictions to [-N, N]; value of 1 clips to [-1, 1]
+  # DDIM sampling (faster inference, deterministic)
+  # Note: Training always uses all diffusion_steps (1000), DDIM only affects inference
+  use_ddim: false  # Set to true for faster, deterministic sampling (recommended for inference)
+  ddim_eta: 0.0  # DDIM stochasticity: 0.0 = deterministic (recommended), 1.0 = equivalent to DDPM
+  ddim_timesteps: 100  # Number of inference steps (e.g., 100 instead of 1000) - much faster!
+  # hidden_size: 1024
+  # depth: 24
+  # num_heads: 16
+  use_dino_features: true
+  dino_layer: 23  # Which ViT-L transformer layer to extract features from (0-indexed). 23 = last layer (default, deepest/most semantic). Try 11 for mid-level features (~2x faster).
+  dino_scale_factor: 0.135  # Fixed DINO scale factor for velocity mode (null = auto-compute, set to .31 for coordinate mode)
+  handle_occlusions: true  # If true, model predicts occlusion along with tracks
+  occlusion_scaling: 0.1
+  # Velocity-based diffusion (diffuse on XY deltas instead of absolute coordinates)
+  diffuse_on_velocity: true  # If true, diffuse on velocity (XY deltas) instead of coordinates
+  velocity_scale: 12.0  # Scale velocity values to match coordinate variance (~sqrt(1000) based on variance analysis)
+  # Initial position encoding
+  # If true, add sinusoidal encoding of initial (x,y) position to token embeddings
+  # Useful for velocity diffusion where initial position is not in the token
+  use_initial_pos_encoding: true
+  
+  # Image conditioning ablation
+  # If false, skip adding ResNet image embedding to conditioning (ablation study)
+  use_image_conditioning: false
+  
+  # Simultaneous diffusion steps (training only)
+  # For each sample in the batch, sample K different noise levels (timesteps) and denoise
+  # all of them in a single forward pass. Gives K× more gradient signal per data sample
+  # without extra data loading. Set to 1 to disable. Does not affect inference.
+  simultaneous_steps: 2

@@ -1,0 +1,41 @@
+# Evaluation config for engine/eval.py.
+# Any key can be overridden on the command line in OmegaConf dotlist syntax:
+#   python -m engine.eval checkpoint=/path/to.ckpt noise_seed=0 visualize=true
+
+# --- Model ---
+# Checkpoint to evaluate. Checkpoints saved by this codebase embed the
+# model_cfg used to build the architecture, so no separate config is needed.
+checkpoint: null
+# Motion-history conditioning layout override: "channel" (required for the
+# released checkpoints) or "embedded" (current training default).
+# null = use the value embedded in the checkpoint.
+motion_history_conditioning: channel
+# Use live weights instead of the checkpoint's EMA shadow (default: EMA).
+no_ema: false
+
+# --- Sampling ---
+use_ddim: true
+ddim_steps: 100
+ddim_eta: 0.0
+# Fixed noise seed for reproducible sampling (null = random).
+noise_seed: null
+# Unconditional sampling: replace displacement conditioning with the null embedding.
+use_null_displacement: false
+
+# --- Data ---
+# Folder of demo-format examples, one subfolder per example with
+# image.png + tracks.npz (+ optional meta.json). See docs/DATA_PREPROCESSING.md.
+data_root: ./demo_examples
+max_samples: null
+batch_size: 1
+num_workers: 4
+device: cuda
+
+# --- Visualization ---
+# When true, evaluation runs per-sample (batch size 1) and writes one
+# visualization per example to viz_dir.
+visualize: false
+viz_dir: eval_viz
+# "tracks"       = 3x3 GT-vs-pred debug grid
+# "animal_color" = paper-style texture-colored GT + prediction videos
+viz_style: tracks
