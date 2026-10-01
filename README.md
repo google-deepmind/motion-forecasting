@@ -158,6 +158,12 @@ Our approach consists of:
 
 We thank Noah Snavely, Andrew Zisserman, Drew Purves, Aleksander Holynski, Linyi Jin, Sander Dieleman, Mark Hamilton, and Jathushan Rajasegeran for helpful discussions and feedback. This work was supported by ONR MURI N00014-21-1-280 and a NSF Graduate Fellowship to NT.
 
-## License
+## License & Disclaimer
+
+Copyright 2026 Google LLC  
+All materials are licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC-BY-NC). You may obtain a copy of the CC-BY-NC license at: https://creativecommons.org/licenses/by-nc/4.0/legalcode.en
+Unless required by applicable law or agreed to in writing, all software and materials distributed here under the Apache 2.0 or CC-BY licenses are distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, 
+either express or implied. See the licenses for the specific language governing permissions and limitations under those licenses.
+This is not an official Google product.
 
 See [LICENSE](LICENSE) for details.
