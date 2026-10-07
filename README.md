@@ -129,7 +129,21 @@ We release **MammalMotion**, a large-scale dataset of camera-stabilized point tr
 - Camera-stabilized coordinates via RANSAC homography estimation
 - Per-animal bounding boxes and segmentation masks (GroundingDINO + VideoSAM)
 
-**Download**: Coming soon
+**Download**:
+
+You can download the full dataset using the Google Cloud CLI. No authentication is required.
+
+**Using gcloud:**
+```bash
+gcloud storage cp -r gs://representations4d/mammalnet_data/
+```
+
+**With wget**
+
+```bash
+wget -i https://storage.googleapis.com/representations4d/mammalnet_data/segmentation_manifest.txt
+wget -i https://storage.googleapis.com/representations4d/mammalnet_data/animal_manifest.txt
+```
 
 ## Method
 
