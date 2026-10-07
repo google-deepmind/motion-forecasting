@@ -9,9 +9,9 @@
 
 <sup>1</sup> UC Berkeley &nbsp; <sup>2</sup> Google DeepMind &nbsp; <sup>3</sup> TTIC
 
-**in submission**
+**ECCV 2026**
 
-[[Paper]](https://arxiv.org/abs/2604.01015) [[Project Page]](https://motion-forecasting.github.io/) [[Dataset]](Coming soon)
+[[Paper (Arxiv Version)]](https://arxiv.org/abs/2604.01015) [[Project Page]](https://motion-forecasting.github.io/)
 
 ## Overview
 
