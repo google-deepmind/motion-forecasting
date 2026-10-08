@@ -119,7 +119,7 @@ python -m engine.eval checkpoint=/path/to/model.ckpt data_root=/path/to/examples
 
 | Model | Dataset | Download |
 |-------|---------|----------|
-| DiT-B (Ours) | MammalMotion | Coming soon |
+| DiT-B (Ours) | MammalMotion | https://storage.googleapis.com/representations4d/mammalnet_model/mammalnet_data_0215_all_data_mammalnet_diffusion_20260215_181738_1817_motion_forecasting_diT_B.pkl |
 
 ## MammalMotion Dataset
 
